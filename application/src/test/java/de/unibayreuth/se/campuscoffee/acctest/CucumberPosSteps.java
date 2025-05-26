@@ -1,5 +1,6 @@
 package de.unibayreuth.se.campuscoffee.acctest;
 
+import de.unibayreuth.se.campuscoffee.TestUtil;
 import de.unibayreuth.se.campuscoffee.domain.ports.PosService;
 import de.unibayreuth.se.campuscoffee.api.dtos.PosDto;
 import de.unibayreuth.se.campuscoffee.domain.CampusType;
@@ -16,6 +17,8 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
+import io.cucumber.datatable.DataTable;
+
 
 import java.util.List;
 import java.util.Map;
@@ -75,7 +78,7 @@ public class CucumberPosSteps {
                 .campus(CampusType.valueOf(row.get("campus")))
                 .street(row.get("street"))
                 .houseNumber(row.get("houseNumber"))
-                .postalCode(Integer.parseInt(row.get("postalCode")))
+                .postalCode(Integer.valueOf(Integer.parseInt(row.get("postalCode"))))
                 .city(row.get("city"))
                 .build();
     }
@@ -88,12 +91,28 @@ public class CucumberPosSteps {
         assertThat(retrievedPosList).isEmpty();
     }
 
+    @Given("the following POS exist:")
+    public void theFollowingPosExist(List<PosDto> posList) {
+        TestUtil.createPos(posList);
+    }
+
+
     // When -----------------------------------------------------------------------
 
     @When("I insert POS with the following elements")
     public void iInsertPosWithTheFollowingValues(List<PosDto> posList) {
         createdPosList = createPos(posList);
         assertThat(createdPosList).size().isEqualTo(posList.size());
+    }
+    @When("I update the POS {string} with description {string}")
+    public void iUpdateThePOSWithDescription(String posName, String newDescription) {
+        PosDto existingPos = TestUtil.retrievePosByName(posName);
+
+        PosDto updatedPos = existingPos.toBuilder()
+                .description(newDescription)
+                .build();
+
+        TestUtil.updatePos(List.of(updatedPos));
     }
 
     // Then -----------------------------------------------------------------------
@@ -104,5 +123,11 @@ public class CucumberPosSteps {
         assertThat(retrievedPosList)
                 .usingRecursiveFieldByFieldElementComparatorIgnoringFields("id", "createdAt", "updatedAt")
                 .containsExactlyInAnyOrderElementsOf(createdPosList);
+    }
+
+    @Then("the POS {string} should have description {string}")
+    public void thePOSShouldHaveDescription(String posName, String expectedDescription) {
+        PosDto retrievedPos = TestUtil.retrievePosByName(posName);
+        assertThat(retrievedPos.getDescription()).isEqualTo(expectedDescription);
     }
 }
